@@ -1,6 +1,7 @@
 const MODELS = {
   gemini: "gemini-2.5-flash",
   chatgpt: "gpt-4o-mini",
+  claude: "claude-sonnet-5-5",
   grok: "grok-3-mini",
   meta: "llama-3.3-70b-versatile",
   deepseek: "deepseek-chat",
@@ -41,6 +42,24 @@ export default async function handler(req, res) {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error?.message || "Gemini error");
       text = (d.candidates?.[0]?.content?.parts || []).map((p) => p.text).join("");
+    } else if (provider === "claude") {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: MODELS.claude,
+          max_tokens: 2048,
+          system,
+          messages,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error?.message || "Claude error");
+      text = (d.content || []).map((b) => b.text || "").join("");
     } else if (OPENAI_STYLE[provider]) {
       const r = await fetch(OPENAI_STYLE[provider], {
         method: "POST",
