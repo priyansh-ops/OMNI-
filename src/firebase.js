@@ -5,10 +5,12 @@ import {
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "PASTE_HERE",
-  authDomain: "PASTE_HERE",
-  projectId: "PASTE_HERE",
-  appId: "PASTE_HERE",
+  apiKey: "AIzaSyBC4YuD6rjfp12fCXAX6ieI1cI7gu1-f9c",
+  authDomain: "omni-6bb34.firebaseapp.com",
+  projectId: "omni-6bb34",
+  storageBucket: "omni-6bb34.firebasestorage.app",
+  messagingSenderId: "755185510316",
+  appId: "1:755185510316:web:90c44f5a611ba1eacf7c09",
 };
 
 const app = initializeApp(firebaseConfig);
