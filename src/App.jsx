@@ -1,11 +1,20 @@
 import { useEffect, useState } from "react";
-import { auth, onAuthStateChanged, login, logout, loadKeys, saveKeys } from "./firebase";
+import {
+  auth, onAuthStateChanged, login, logout, loadKeys, saveKeys, listChats, saveChat,
+} from "./firebase";
 import Keys from "./components/Keys";
+import Chat from "./components/Chat";
+import Sidebar from "./components/Sidebar";
+
+const newChat = () => ({ id: String(Date.now()), title: "", messages: [] });
 
 export default function App() {
-  const [user, setUser] = useState(undefined); // undefined = loading
+  const [user, setUser] = useState(undefined);
   const [keys, setKeys] = useState({});
   const [showKeys, setShowKeys] = useState(false);
+  const [chats, setChats] = useState([]);
+  const [chat, setChat] = useState(newChat());
+  const [menu, setMenu] = useState(false);
 
   useEffect(
     () =>
@@ -15,10 +24,34 @@ export default function App() {
           const k = await loadKeys(u.uid);
           setKeys(k);
           setShowKeys(!Object.values(k).some(Boolean));
+          setChats(await listChats(u.uid).catch(() => []));
         }
       }),
     []
   );
+
+  async function handleSave(c) {
+    setChat(c);
+    setChats((prev) => [c, ...prev.filter((x) => x.id !== c.id)]);
+    try {
+      await saveChat(user.uid, c);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function openChat(id) {
+    const c = chats.find((x) => x.id === id);
+    if (c) setChat(c);
+    setShowKeys(false);
+    setMenu(false);
+  }
+
+  function startNew() {
+    setChat(newChat());
+    setShowKeys(false);
+    setMenu(false);
+  }
 
   if (user === undefined) return <div className="center">Loading...</div>;
 
@@ -36,12 +69,26 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <b>Omni</b>
+        <div className="row">
+          <button onClick={() => setMenu(true)}>☰</button>
+          <b className="logo">Omni</b>
+        </div>
         <div className="row">
           <button onClick={() => setShowKeys(true)}>Keys</button>
           <button onClick={logout}>Logout</button>
         </div>
       </header>
+
+      {menu && (
+        <Sidebar
+          chats={chats}
+          currentId={chat.id}
+          onNew={startNew}
+          onOpen={openChat}
+          onClose={() => setMenu(false)}
+        />
+      )}
+
       {showKeys ? (
         <Keys
           keys={keys}
@@ -53,7 +100,7 @@ export default function App() {
           }}
         />
       ) : (
-        <div className="center">Login aur keys ready hain. Chat agle batch me.</div>
+        <Chat key={chat.id} chat={chat} keys={keys} onSave={handleSave} />
       )}
     </div>
   );
