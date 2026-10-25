@@ -2,7 +2,9 @@ import { initializeApp } from "firebase/app";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
 } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  getFirestore, doc, getDoc, setDoc, collection, getDocs, query, orderBy, limit,
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBC4YuD6rjfp12fCXAX6ieI1cI7gu1-f9c",
@@ -28,4 +30,22 @@ export async function loadKeys(uid) {
 
 export async function saveKeys(uid, keys) {
   await setDoc(doc(db, "users", uid), { keys }, { merge: true });
+}
+
+export async function listChats(uid) {
+  const q = query(
+    collection(db, "users", uid, "chats"),
+    orderBy("updatedAt", "desc"),
+    limit(50)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function saveChat(uid, chat) {
+  await setDoc(doc(db, "users", uid, "chats", chat.id), {
+    title: chat.title,
+    messages: chat.messages,
+    updatedAt: Date.now(),
+  });
 }
