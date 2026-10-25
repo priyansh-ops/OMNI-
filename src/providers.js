@@ -3,4 +3,5 @@ export const PROVIDERS = [
   { id: "chatgpt", name: "ChatGPT", color: "#10a37f", keyHelp: "OpenAI API key" },
   { id: "grok", name: "Grok", color: "#e5e5e5", keyHelp: "xAI API key" },
   { id: "meta", name: "Meta AI", color: "#0866ff", keyHelp: "Groq API key (Llama chalane ke liye)" },
+  { id: "deepseek", name: "DeepSeek", color: "#4d6bfe", keyHelp: "DeepSeek API key" },
 ];
