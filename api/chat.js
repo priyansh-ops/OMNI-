@@ -1,0 +1,64 @@
+const MODELS = {
+  gemini: "gemini-2.5-flash",
+  chatgpt: "gpt-4o-mini",
+  grok: "grok-3-mini",
+  meta: "llama-3.3-70b-versatile",
+  deepseek: "deepseek-chat",
+};
+
+const OPENAI_STYLE = {
+  chatgpt: "https://api.openai.com/v1/chat/completions",
+  grok: "https://api.x.ai/v1/chat/completions",
+  meta: "https://api.groq.com/openai/v1/chat/completions",
+  deepseek: "https://api.deepseek.com/chat/completions",
+};
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const { provider, key, system, messages } = req.body || {};
+  if (!provider || !key || !Array.isArray(messages)) {
+    return res.status(400).json({ error: "Data adhura hai" });
+  }
+
+  try {
+    let text = "";
+
+    if (provider === "gemini") {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.gemini}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: system }] },
+            contents: messages.map((m) => ({
+              role: m.role === "assistant" ? "model" : "user",
+              parts: [{ text: m.content }],
+            })),
+          }),
+        }
+      );
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error?.message || "Gemini error");
+      text = (d.candidates?.[0]?.content?.parts || []).map((p) => p.text).join("");
+    } else if (OPENAI_STYLE[provider]) {
+      const r = await fetch(OPENAI_STYLE[provider], {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: MODELS[provider],
+          messages: [{ role: "system", content: system }, ...messages],
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error?.message || "API error");
+      text = d.choices?.[0]?.message?.content || "";
+    } else {
+      throw new Error("Ye AI abhi supported nahi hai");
+    }
+
+    return res.status(200).json({ text });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+}
