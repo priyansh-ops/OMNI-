@@ -1,5 +1,5 @@
 const MODELS = {
-  gemini: "gemini-2.5-flash",
+  gemini: "gemini-3.8-flash",
   chatgpt: "gpt-4o-mini",
   claude: "claude-sonnet-5-5",
   grok: "grok-3-mini",
@@ -13,6 +13,14 @@ const OPENAI_STYLE = {
   meta: "https://api.groq.com/openai/v1/chat/completions",
   deepseek: "https://api.deepseek.com/chat/completions",
 };
+
+function errText(d, fallback) {
+  if (!d) return fallback;
+  if (typeof d.error === "string") return d.error;
+  if (d.error?.message) return d.error.message;
+  if (d.message) return d.message;
+  return fallback + " " + JSON.stringify(d).slice(0, 200);
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
@@ -39,8 +47,8 @@ export default async function handler(req, res) {
           }),
         }
       );
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error?.message || "Gemini error");
+      const d = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(errText(d, "Gemini error"));
       text = (d.candidates?.[0]?.content?.parts || []).map((p) => p.text).join("");
     } else if (provider === "claude") {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -57,8 +65,8 @@ export default async function handler(req, res) {
           messages,
         }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error?.message || "Claude error");
+      const d = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(errText(d, "Claude error"));
       text = (d.content || []).map((b) => b.text || "").join("");
     } else if (OPENAI_STYLE[provider]) {
       const r = await fetch(OPENAI_STYLE[provider], {
@@ -69,8 +77,8 @@ export default async function handler(req, res) {
           messages: [{ role: "system", content: system }, ...messages],
         }),
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error?.message || "API error");
+      const d = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(errText(d, "API error"));
       text = d.choices?.[0]?.message?.content || "";
     } else {
       throw new Error("Ye AI abhi supported nahi hai");
