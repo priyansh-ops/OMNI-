@@ -22,6 +22,21 @@ function errText(d, fallback) {
   return fallback + " " + JSON.stringify(d).slice(0, 200);
 }
 
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function callWithRetry(url, options, tries = 3) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    const r = await fetch(url, options);
+    const d = await r.json().catch(() => null);
+    if (r.ok) return { r, d };
+    last = { r, d };
+    if (![429, 500, 502, 503, 504].includes(r.status)) break;
+    await wait(1500 * (i + 1));
+  }
+  return last;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
   const { provider, key, system, messages } = req.body || {};
@@ -33,7 +48,7 @@ export default async function handler(req, res) {
     let text = "";
 
     if (provider === "gemini") {
-      const r = await fetch(
+      const { r, d } = await callWithRetry(
         `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.gemini}:generateContent`,
         {
           method: "POST",
@@ -47,11 +62,10 @@ export default async function handler(req, res) {
           }),
         }
       );
-      const d = await r.json().catch(() => null);
       if (!r.ok) throw new Error(errText(d, "Gemini error"));
       text = (d.candidates?.[0]?.content?.parts || []).map((p) => p.text).join("");
     } else if (provider === "claude") {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
+      const { r, d } = await callWithRetry("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -65,11 +79,10 @@ export default async function handler(req, res) {
           messages,
         }),
       });
-      const d = await r.json().catch(() => null);
       if (!r.ok) throw new Error(errText(d, "Claude error"));
       text = (d.content || []).map((b) => b.text || "").join("");
     } else if (OPENAI_STYLE[provider]) {
-      const r = await fetch(OPENAI_STYLE[provider], {
+      const { r, d } = await callWithRetry(OPENAI_STYLE[provider], {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify({
@@ -77,7 +90,6 @@ export default async function handler(req, res) {
           messages: [{ role: "system", content: system }, ...messages],
         }),
       });
-      const d = await r.json().catch(() => null);
       if (!r.ok) throw new Error(errText(d, "API error"));
       text = d.choices?.[0]?.message?.content || "";
     } else {
